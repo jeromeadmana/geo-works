@@ -7,6 +7,7 @@ import { createParcel, updateParcel, type ParcelInput } from '@/actions/parcels'
 import { MapPicker } from '@/components/admin/map-picker';
 import { US_STATES } from '@/lib/states';
 import { slugify } from '@/lib/slug';
+import { toast } from '@/lib/toast';
 import type { ParcelStatus } from '@/db/schema';
 import type { ParcelWithPhotos } from '@/lib/parcels';
 
@@ -149,13 +150,17 @@ export function ParcelForm({
     try {
       if (mode === 'edit' && initial) {
         await updateParcel(initial.id, payload);
+        toast.success('Saved');
         startTransition(() => router.refresh());
       } else {
         const created = await createParcel(payload);
+        toast.success('Parcel created', 'Upload photos next.');
         router.push(`/admin/parcels/${created.id}/edit?created=1`);
       }
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Save failed.');
+      const message = err instanceof Error ? err.message : 'Save failed.';
+      setFormError(message);
+      toast.error(mode === 'edit' ? 'Save failed' : 'Create failed', message);
     }
   });
 

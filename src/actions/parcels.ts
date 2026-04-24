@@ -294,13 +294,6 @@ export async function removePhoto(photoId: string) {
   revalidatePath('/parcels');
 }
 
-// Form-action wrapper for the bulk table form (uses FormData).
-export async function bulkUpdateStatusFormAction(formData: FormData) {
-  const ids = formData.getAll('selected').map(String).filter(Boolean);
-  const status = parcelStatusSchema.parse(formData.get('status'));
-  await bulkUpdateStatus(ids, status);
-}
-
 export async function setPrimaryPhoto(parcelId: string, photoId: string) {
   await requireAuth();
   await db

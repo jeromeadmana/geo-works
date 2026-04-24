@@ -188,7 +188,6 @@ export default async function AdminParcelsPage({
                         type="checkbox"
                         name="selected"
                         value={parcel.id}
-                        form="bulk-form"
                         className="h-4 w-4 rounded border-neutral-300 accent-emerald-600"
                       />
                     </td>

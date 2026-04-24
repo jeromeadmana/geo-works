@@ -15,7 +15,8 @@
     "db:drop": "drizzle-kit drop",
     "db:seed": "tsx scripts/seed.ts",
     "diagnose:map": "tsx scripts/diagnose-map.ts",
-    "diagnose:admin": "tsx scripts/diagnose-admin.ts"
+    "diagnose:admin": "tsx scripts/diagnose-admin.ts",
+    "diagnose:responsive": "tsx scripts/diagnose-responsive.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.2",

@@ -2,6 +2,8 @@
 
 import { useTransition } from 'react';
 import { updateParcelStatus } from '@/actions/parcels';
+import { STATUS_LABELS } from '@/lib/format';
+import { toast } from '@/lib/toast';
 import type { ParcelStatus } from '@/db/schema';
 
 const STATUS_OPTIONS: Array<{ value: ParcelStatus; label: string }> = [
@@ -23,7 +25,15 @@ export function RowStatus({ id, status }: { id: string; status: ParcelStatus }) 
       onChange={(event) => {
         const next = event.currentTarget.value as ParcelStatus;
         startTransition(async () => {
-          await updateParcelStatus(id, next);
+          try {
+            await updateParcelStatus(id, next);
+            toast.success(`Marked ${STATUS_LABELS[next].toLowerCase()}`);
+          } catch (err) {
+            toast.error(
+              'Status update failed',
+              err instanceof Error ? err.message : undefined,
+            );
+          }
         });
       }}
       className="h-7 rounded-lg border border-neutral-300 bg-white px-2 text-xs font-medium text-neutral-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"

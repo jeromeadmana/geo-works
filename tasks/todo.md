@@ -300,6 +300,104 @@ Sections labeled ~~crossed out~~ in the checklist below are deferred items from 
 
 ## Phase 2 plan (frozen, for provenance)
 
-## Phase 4 — Brand system + responsive polish · ⏳ scheduled
+## Phase 4 — Brand + responsive polish · 📋 plan (awaiting Go/No-Go)
+
+**Goal:** Take every surface from "functional" to "feels intentional." Tighten the design system, verify every page at mobile/tablet/desktop, add loading skeletons + toasts, custom 404, favicon + base OG image, dark-mode cohesion, and kill the two stray React hydration warnings.
+
+### Pre-flight — blast radius
+
+| Area | Change | Risk |
+| --- | --- | --- |
+| `src/app/globals.css` | Expand design tokens: brand palette (emerald/earth-tone accents), muted surfaces, semantic tokens (`--color-border`, `--color-muted`, etc.). Dark-mode tokens in same block. | Low |
+| `src/components/site-header.tsx` + `site-footer.tsx` | Use the new tokens, tighten spacing, fix any mobile layout issues | Low |
+| `src/components/parcel-card.tsx` | Polish: loading placeholder aspect ratio, better truncation, price emphasis | Low |
+| `src/app/(public)/page.tsx` | Home hero: responsive headline, button row stacks on mobile | Low |
+| `src/app/(public)/parcels/page.tsx` + `[slug]/page.tsx` | Responsive grid, sticky sidebar detaches on mobile, photo gallery sizing | Low |
+| `src/app/(public)/map/page.tsx` | Already responsive; verify the mobile bottom-sheet actually appears at ≤640px (had simulated-only check in Phase 2) | Low |
+| `src/app/admin/(authed)/parcels/page.tsx` | Table → horizontal-scroll on mobile OR collapse to cards. Current table overflows at 375px. | Medium |
+| `src/app/admin/(authed)/parcels/[id]/edit/page.tsx` | Form sections stack correctly; map picker fits mobile | Low |
+| `src/app/not-found.tsx` **(NEW)** | Branded 404 for any unmatched route (currently falls back to default) | Low |
+| `src/app/loading.tsx` **(NEW)** | Root loading skeleton for RSC transitions | Low |
+| `src/app/(public)/parcels/loading.tsx` + `admin/(authed)/parcels/loading.tsx` **(NEW)** | Skeleton rows/cards during SSR fetch | Low |
+| `src/components/toast-provider.tsx` **(NEW)** + `src/lib/toast.ts` **(NEW)** | Tiny self-rolled toast system (context + auto-dismiss). ~30–40 LOC, no new dep. Wired into admin server-action callbacks. | Medium — new cross-cutting component |
+| `src/actions/parcels.ts` | No code change — return results already signal success; toast triggers stay client-side on action resolution. | None |
+| `src/components/admin/row-status.tsx` + `row-delete.tsx` + `photo-manager.tsx` + `parcel-form.tsx` + `bulk-actions.tsx` + `login-form.tsx` | Wire toasts on success/failure of each mutation | Low |
+| `src/app/icon.svg` **(NEW)** or `icon.tsx` | Replace default favicon with the emerald rounded square from the header | Low |
+| `src/app/opengraph-image.tsx` **(NEW)** | Site-wide OG image via Vercel OG (`ImageResponse`) — branded card with tagline | Low |
+| `src/app/layout.tsx` | `<ToastProvider>` wraps children; keep root minimal | Low |
+| **Hydration fix** | Track down the two `#418` warnings (`diagnose:admin` flagged them). Suspect: `site-footer.tsx` `new Date().getFullYear()` interacting with SSR revalidation, OR the admin table's `Intl.DateTimeFormat` despite UTC fix. Run `diagnose:admin` with `--no-minify` build or a fresh browser session to get the non-minified trace. | Medium — the mystery part |
+| `DB schema / env / deps` | **No changes** | — |
+
+### Checklist
+
+**A · Design tokens & system**
+- [ ] Expand `globals.css` with palette + semantic tokens (light + dark).
+- [ ] Audit uses of raw Tailwind colors (`emerald-600`, etc.) and swap to tokens where semantics differ across light/dark.
+
+**B · Responsive audit (Playwright)**
+- [ ] Write `scripts/diagnose-responsive.ts` — boots Chromium at 375 × 667, 768 × 1024, 1440 × 900; captures screenshots of every route (home, parcels, parcel detail, map, admin login, admin parcels, admin new, admin edit, admin audit). Saves to `tmp-responsive/` and fails if any viewport shows horizontal overflow or layout bugs detected heuristically (e.g. elements wider than viewport).
+- [ ] Walk through each screenshot, fix issues, re-run until clean.
+
+**C · Loading states**
+- [ ] `src/app/(public)/parcels/loading.tsx` — card grid skeleton
+- [ ] `src/app/admin/(authed)/parcels/loading.tsx` — table row skeleton
+- [ ] Root `src/app/loading.tsx` — subtle top progress bar (Next 16 supports `<loading>` at any segment)
+
+**D · Toasts**
+- [ ] `src/lib/toast.ts` — simple store (Zustand-free: a module-level EventTarget or plain context).
+- [ ] `src/components/toast-provider.tsx` — renders a fixed-bottom-right stack, auto-dismiss 3s, 4 types (`success/error/info/loading`).
+- [ ] Wrap root layout (or just admin layout) with `<ToastProvider>`.
+- [ ] Wire into every mutation path: create, update, status change, delete, bulk status, photo upload, photo set-primary, photo delete, login error.
+
+**E · 404 + error pages**
+- [ ] `src/app/not-found.tsx` — branded 404 matching the rest of the site. The existing parcel-specific `parcels/[slug]/not-found.tsx` already styled; this is the site-wide fallback.
+- [ ] `src/app/global-error.tsx` — replaces the "This page couldn't load" screen with a branded one.
+
+**F · Icons + OG**
+- [ ] `src/app/icon.svg` or `src/app/icon.tsx` — emerald gradient rounded square (same pattern as SiteHeader).
+- [ ] `src/app/opengraph-image.tsx` — Vercel OG, returns an `ImageResponse` with site name, tagline, brand gradient background. One static site-wide image.
+
+**G · Hydration mystery**
+- [ ] Reproduce the two `#418` warnings with an unminified production build OR dev-mode Playwright run so the trace is readable.
+- [ ] Likely suspects: `SiteFooter.new Date().getFullYear()` under revalidation; `login-form`'s `decodeURIComponent(initialError)`; or admin table `Intl` formatting. Fix once identified.
+
+**H · Dark-mode verification**
+- [ ] Run `diagnose:responsive` with `colorScheme: 'dark'` on the Playwright context — audit all screenshots for broken contrast, white-on-white artifacts, missing `dark:` variants.
+
+### Verification plan
+
+**Automated:**
+- `npm run typecheck` / `npm run lint` / `npm run build` clean.
+- `npm run diagnose:responsive` green:
+  - No horizontal scrollbars at 375 × 667 on any route
+  - Both light + dark screenshots saved per route
+  - Admin login + admin CRUD still reachable
+- `npm run diagnose:admin` (re-run) — 0 page errors expected (hydration warnings cleared).
+
+**Requires user eye:**
+- Flip through `tmp-responsive/` screenshots; point out anything that still feels off
+- Verify toasts on real Vercel deployment after mutations
+
+### Edge cases
+
+- **Reduced motion:** skeleton shimmer CSS uses `@media (prefers-reduced-motion: reduce)` to disable animation.
+- **Tailwind v4 dark mode via CSS vars:** we use `@media (prefers-color-scheme: dark)` in globals.css, not Tailwind's `dark:` variant class — verify both paths work consistently. (We already mix: tokens via CSS media query, plus `dark:` variants in utilities. Left unchanged.)
+- **Toast dismissal during route change:** toasts persist across client-side navigation if the provider is above the route tree. Intentional; visual state survives the navigation.
+- **Server-action toast triggering:** server actions can't directly call client toast. Pattern: client callsite awaits the action, decides success/error from the return value, then fires the toast. Already how row-status.tsx is structured; extend to the rest.
+- **Mobile admin table:** pure horizontal scroll is functional but ugly. If time permits, add a "card view" at `<sm` that collapses each row to a stacked card with the same row actions.
+- **OG image generation:** Vercel OG runs on edge runtime. `NEXT_PUBLIC_SITE_URL` must be set or absolute URLs in the card break. Already in `.env.local.example`.
+
+### Open questions for user
+
+1. **Brand direction** — I've been leaning "modern minimalist with emerald accent." Comfortable with that, or lean more rustic/earthy (brown + green, serif headlines) to match the "land" theme? If modern, I'll stay the course. If rustic, I'll retouch headings + accents in Phase 4.
+2. **Dark mode toggle** — skip it (system preference only, my default) or add a small toggle in the header?
+3. **Toast library** — self-roll ~40 LOC (no dep, my default) vs. `sonner` (tiny, prettier animations, one new dep).
+4. **Mobile admin table** — horizontal scroll (simpler) or collapse to cards at `<sm` (prettier, a bit more work)?
+
+### Phase 4 plan (frozen, for provenance)
+
+---
+
+## Phase 4 (original outline, kept for reference) · done when the plan above is executed
 ## Phase 5 — SEO, sitemap, Vercel subdomain deploy · ⏳ scheduled
 ## Phase 6 — Rate limits, backups, operator docs · ⏳ scheduled

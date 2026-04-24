@@ -25,10 +25,12 @@ function createDb(): DrizzleDb {
 
   const instance = drizzle(client, { schema, logger: false });
 
-  if (process.env.NODE_ENV !== 'production') {
-    globalForDb.__geoPgClient = client;
-    globalForDb.__geoDb = instance;
-  }
+  // Cache globally in every mode. In serverless (Vercel), each cold
+  // function gets its own process and the cache persists across warm
+  // invocations. In a long-lived Node server (`next start`), the cache
+  // keeps us to 1 Postgres connection total instead of one per render.
+  globalForDb.__geoPgClient = client;
+  globalForDb.__geoDb = instance;
 
   return instance;
 }

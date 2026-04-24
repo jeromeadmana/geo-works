@@ -5,6 +5,7 @@ import { useState, useTransition } from 'react';
 import { CldUploadWidget, type CloudinaryUploadWidgetResults } from 'next-cloudinary';
 import { Star, Trash2, Upload } from 'lucide-react';
 import { addPhoto, removePhoto, setPrimaryPhoto } from '@/actions/parcels';
+import { toast } from '@/lib/toast';
 import type { ParcelPhoto } from '@/db/schema';
 import { cn } from '@/lib/utils';
 
@@ -54,9 +55,12 @@ export function PhotoManager({
           createdAt: new Date(),
         } as ParcelPhoto,
       ]);
+      toast.success('Photo added');
       startTransition(() => router.refresh());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed to persist');
+      const message = err instanceof Error ? err.message : 'Upload failed to persist';
+      setError(message);
+      toast.error('Photo upload failed', message);
     }
   }
 
@@ -66,9 +70,12 @@ export function PhotoManager({
       setPhotos((prev) =>
         prev.map((p) => ({ ...p, isPrimary: p.id === photoId })),
       );
+      toast.success('Primary photo updated');
       startTransition(() => router.refresh());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not set primary.');
+      const message = err instanceof Error ? err.message : 'Could not set primary.';
+      setError(message);
+      toast.error('Update failed', message);
     }
   }
 
@@ -84,9 +91,12 @@ export function PhotoManager({
         }
         return remaining;
       });
+      toast.success('Photo removed');
       startTransition(() => router.refresh());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Delete failed.');
+      const message = err instanceof Error ? err.message : 'Delete failed.';
+      setError(message);
+      toast.error('Delete failed', message);
     }
   }
 
