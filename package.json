@@ -14,13 +14,15 @@
     "db:studio": "drizzle-kit studio",
     "db:drop": "drizzle-kit drop",
     "db:seed": "tsx scripts/seed.ts",
-    "diagnose:map": "tsx scripts/diagnose-map.ts"
+    "diagnose:map": "tsx scripts/diagnose-map.ts",
+    "diagnose:admin": "tsx scripts/diagnose-admin.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.2",
     "@hookform/resolvers": "^5.2.2",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
+    "cloudinary": "^2.9.0",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",
     "lucide-react": "^1.11.0",

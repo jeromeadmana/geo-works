@@ -13,10 +13,24 @@ per-parcel detail pages, and an admin CMS for non-technical staff.
 - Cloudinary (signed uploads) — Phase 3
 - Deploys to Vercel Hobby
 
-## Phase 0 status
+## Status
 
-Scaffold, DB client, schema (not yet migrated), health check, env templates.
-No parcel listings or map yet — those land in Phases 1 and 2.
+Phases 0–3 complete. Phase 0: scaffold + shared-DB safety. Phase 1: public
+listings at `/parcels`. Phase 2: interactive map at `/map`. Phase 3: admin
+CMS at `/admin` with NextAuth credentials, parcel CRUD, bulk status changes,
+Cloudinary photo uploads, Mapbox lat/lng picker, and an audit log. Remaining
+phases (brand polish, deploy, hardening) are scheduled in [tasks/todo.md](tasks/todo.md).
+
+## Demo admin credentials
+
+After `npm run db:seed`, a demo admin is available:
+
+- URL: `http://localhost:3000/admin/login`
+- Email: `admin@geoworks.local`
+- Password: `geoworks-admin`
+
+The credentials are re-upserted on every `npm run db:seed`, so you can reset
+at any time.
 
 ## Prerequisites
 

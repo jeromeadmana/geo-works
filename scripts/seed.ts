@@ -1,10 +1,14 @@
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 
+import bcrypt from 'bcryptjs';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { parcelPhotos, parcels } from '../src/db/schema';
+import { parcelPhotos, parcels, users } from '../src/db/schema';
 import { slugify } from '../src/lib/slug';
+
+const DEMO_ADMIN_EMAIL = 'admin@geoworks.local';
+const DEMO_ADMIN_PASSWORD = 'geoworks-admin';
 
 type SeedParcel = {
   title: string;
@@ -364,6 +368,22 @@ async function main() {
     console.log(`  · ${status}: ${n}`);
   }
   console.log(`Photos inserted: ${photoRows.length}`);
+
+  // Demo admin user. Idempotent via upsert so reseeds rotate the hash fresh.
+  const passwordHash = await bcrypt.hash(DEMO_ADMIN_PASSWORD, 10);
+  await db
+    .insert(users)
+    .values({
+      email: DEMO_ADMIN_EMAIL,
+      name: 'Demo Admin',
+      passwordHash,
+      role: 'admin',
+    })
+    .onConflictDoUpdate({
+      target: users.email,
+      set: { passwordHash, name: 'Demo Admin', role: 'admin' },
+    });
+  console.log(`Admin user upserted: ${DEMO_ADMIN_EMAIL}`);
 
   await client.end();
 }

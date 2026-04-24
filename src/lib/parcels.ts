@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNull, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import {
   parcelPhotos,
@@ -123,6 +123,106 @@ function isValidCoord(lat: number, lng: number): boolean {
     lng >= -180 &&
     lng <= 180
   );
+}
+
+export type AdminSort =
+  | 'updated_desc'
+  | 'created_desc'
+  | 'price_asc'
+  | 'price_desc'
+  | 'title_asc';
+
+export async function listAllParcelsForAdmin({
+  statuses,
+  state,
+  search,
+  sort = 'updated_desc',
+  page = 1,
+  pageSize = 20,
+}: {
+  statuses?: ParcelStatus[];
+  state?: string | null;
+  search?: string | null;
+  sort?: AdminSort;
+  page?: number;
+  pageSize?: number;
+} = {}): Promise<{
+  items: ParcelWithPhotos[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}> {
+  const trimmedSearch = search?.trim();
+  const whereClause = and(
+    isNull(parcels.deletedAt),
+    statuses && statuses.length > 0 ? inArray(parcels.status, statuses) : undefined,
+    state ? eq(parcels.state, state.toUpperCase()) : undefined,
+    trimmedSearch
+      ? or(
+          ilike(parcels.title, `%${trimmedSearch}%`),
+          ilike(parcels.apn, `%${trimmedSearch}%`),
+          ilike(parcels.county, `%${trimmedSearch}%`),
+        )
+      : undefined,
+  );
+
+  const order = (() => {
+    switch (sort) {
+      case 'created_desc':
+        return [desc(parcels.createdAt)];
+      case 'price_asc':
+        return [asc(parcels.price)];
+      case 'price_desc':
+        return [desc(parcels.price)];
+      case 'title_asc':
+        return [asc(parcels.title)];
+      default:
+        return [desc(parcels.updatedAt)];
+    }
+  })();
+
+  const safePage = Math.max(1, Math.floor(page));
+  const offset = (safePage - 1) * pageSize;
+
+  const [rows, totalRow] = await Promise.all([
+    db.query.parcels.findMany({
+      where: whereClause,
+      orderBy: order,
+      limit: pageSize,
+      offset,
+      with: {
+        photos: {
+          orderBy: [desc(parcelPhotos.isPrimary), asc(parcelPhotos.sortOrder)],
+        },
+      },
+    }),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(parcels)
+      .where(whereClause),
+  ]);
+
+  const total = totalRow[0]?.count ?? 0;
+  return {
+    items: rows as ParcelWithPhotos[],
+    total,
+    page: safePage,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+  };
+}
+
+export async function getParcelById(id: string): Promise<ParcelWithPhotos | null> {
+  const row = await db.query.parcels.findFirst({
+    where: and(eq(parcels.id, id), isNull(parcels.deletedAt)),
+    with: {
+      photos: {
+        orderBy: [desc(parcelPhotos.isPrimary), asc(parcelPhotos.sortOrder)],
+      },
+    },
+  });
+  return (row ?? null) as ParcelWithPhotos | null;
 }
 
 export function toMapFeatures(rows: MapParcel[]): MapFeatureCollection {
