@@ -24,6 +24,32 @@ Corrections and instructions captured from the user. Review at the start of each
 
 ---
 
+## 2026-04-25 · JWT sessions must tolerate DB rows vanishing
+
+**Rule:** Any table that FK-references `geo_users.id` (or any user table) must gracefully degrade when the session's JWT carries a user id that no longer exists. Don't assume `session.user.id` is always a valid FK target.
+
+**Why:** After migrating the DB from Aiven to Supabase and reseeding, a user with a still-valid JWT (signed by unchanged `NEXTAUTH_SECRET`) tried to upload a photo. The `logAudit` insert into `geo_audit_log` failed with FK violation `23503` on `actor_id → geo_users.id` because the reseeded user had a new UUID. The JWT was still trusted; the ID it carried was stale. This bubbled up as a 500 on the server action and a generic "This page couldn't load" to the user.
+
+**How to apply:**
+- `logAudit` now does a cheap `SELECT id FROM geo_users WHERE id = $1` and nulls out `actor_id` if the user is gone. The snapshot `actor_email` string (no FK) still records who did it.
+- For any new FK referencing `geo_users.id`, either (a) allow NULL + degrade like this, or (b) add a JWT callback that evicts sessions whose user id is missing.
+- Consider adding this guard to any future table that FKs user identity — audit / favorites / notifications / comments.
+
+---
+
+## 2026-04-25 · Serverless DB needs a transaction pooler, not a direct connection
+
+**Rule:** On Vercel (or any serverless host), `DATABASE_URL` must point at a **transaction-mode connection pooler**, not the direct Postgres port. Locally, direct or session pooler are fine. Never use direct in production serverless.
+
+**Why:** Each Vercel serverless invocation spins up its own Node process with its own `postgres` client, holding a connection. Aiven free tier (~10–20 slots) saturated in minutes; Supabase free direct connection is also capped and often IPv6-only. Symptom: `remaining connection slots are reserved for roles with the SUPERUSER attribute` (code 53300) → generic 500 pages on any DB-touching route.
+
+**How to apply:**
+- **Local `.env.local`:** direct URI (or session pooler if direct is IPv6-only). Needed for migrations (DDL) + seeds.
+- **Vercel `DATABASE_URL`:** transaction pooler URI (Supabase port 6543 / Aiven PgBouncer port). The driver config I use (`max: 1`, `prepare: false`) is already transaction-pooler-compatible.
+- If migrations are ever to run on Vercel (they shouldn't — run locally or in CI), use a one-off session URI for those jobs only.
+
+---
+
 ## 2026-04-25 · Autonomous browser verification beats reload ping-pong
 
 **Rule:** When a UI bug doesn't reproduce from `curl`-able evidence (CSS cascade, client-side rendering, canvas sizing, WebGL), **use Playwright to inspect the live DOM** instead of asking the user for screenshots and DevTools readouts.
