@@ -51,3 +51,8 @@ next-env.d.ts
 .claude/
 .cursor/
 .aider*
+
+# diagnostic artifacts
+tmp-*.png
+tmp-*.html
+tmp-*.json

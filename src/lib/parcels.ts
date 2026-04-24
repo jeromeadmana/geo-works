@@ -1,6 +1,12 @@
-import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull, ne, sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { parcelPhotos, parcels, type Parcel, type ParcelPhoto } from '@/db/schema';
+import {
+  parcelPhotos,
+  parcels,
+  type Parcel,
+  type ParcelPhoto,
+  type ParcelStatus,
+} from '@/db/schema';
 
 export type ParcelWithPhotos = Parcel & { photos: ParcelPhoto[] };
 
@@ -61,7 +67,36 @@ export async function getParcelBySlug(slug: string): Promise<ParcelWithPhotos | 
   return (row ?? null) as ParcelWithPhotos | null;
 }
 
-export async function getActiveParcelsForMap() {
+export type MapParcel = {
+  id: string;
+  slug: string;
+  title: string;
+  price: string | null;
+  acreage: string | null;
+  state: string;
+  county: string | null;
+  lat: number;
+  lng: number;
+  status: ParcelStatus;
+};
+
+export type MapFeatureProperties = Omit<MapParcel, 'lat' | 'lng'>;
+export type MapFeature = {
+  type: 'Feature';
+  geometry: { type: 'Point'; coordinates: [number, number] };
+  properties: MapFeatureProperties;
+};
+export type MapFeatureCollection = {
+  type: 'FeatureCollection';
+  features: MapFeature[];
+};
+
+/**
+ * Returns every parcel eligible for the public map — active, pending, and sold.
+ * Inactive and soft-deleted rows are excluded entirely (they never render on
+ * the map, per Phase 2 decision).
+ */
+export async function getMappableParcels(): Promise<MapParcel[]> {
   return db
     .select({
       id: parcels.id,
@@ -76,5 +111,38 @@ export async function getActiveParcelsForMap() {
       status: parcels.status,
     })
     .from(parcels)
-    .where(and(eq(parcels.status, 'active'), isNull(parcels.deletedAt)));
+    .where(and(ne(parcels.status, 'inactive'), isNull(parcels.deletedAt)));
+}
+
+function isValidCoord(lat: number, lng: number): boolean {
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  );
+}
+
+export function toMapFeatures(rows: MapParcel[]): MapFeatureCollection {
+  const features: MapFeature[] = [];
+  for (const r of rows) {
+    if (!isValidCoord(r.lat, r.lng)) continue;
+    features.push({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [r.lng, r.lat] },
+      properties: {
+        id: r.id,
+        slug: r.slug,
+        title: r.title,
+        price: r.price,
+        acreage: r.acreage,
+        state: r.state,
+        county: r.county,
+        status: r.status,
+      },
+    });
+  }
+  return { type: 'FeatureCollection', features };
 }

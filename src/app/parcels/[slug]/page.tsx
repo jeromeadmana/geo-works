@@ -187,7 +187,7 @@ export default async function ParcelDetailPage({ params }: { params: Params }) {
           )}
 
           <Link
-            href={`/map#parcel-${parcel.id}`}
+            href={`/map?focus=${parcel.id}`}
             className="flex h-11 w-full items-center justify-center rounded-full bg-neutral-950 text-sm font-medium text-white transition hover:bg-neutral-800 dark:bg-white dark:text-neutral-950 dark:hover:bg-neutral-200"
           >
             View on map

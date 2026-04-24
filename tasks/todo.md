@@ -25,7 +25,47 @@ Scaffold, Drizzle with `geo_*` tablesFilter, schema, lazy env, health endpoint, 
 
 ---
 
-## Phase 2 — Interactive Mapbox map · 📋 plan (awaiting Go/No-Go)
+## Phase 2 — Interactive Mapbox map · ✅ done 2026-04-25
+
+**Go/No-Go:** user approved 2026-04-25. Defaults chosen: Mapbox `light-v11`/`dark-v11` auto, default filter = Available, inactive parcels kept off the map entirely.
+
+### Review / validation
+
+**Automated:**
+- `npm run lint` → clean (fixed a stray unescaped apostrophe in `src/app/page.tsx`).
+- `npm run typecheck` → clean.
+- `npm run build` → green. Build output shows `ƒ /api/parcels/map` and `ƒ /map` as expected dynamic routes.
+- `curl -sI /api/parcels/map` → `HTTP 200`, `cache-control: public, s-maxage=60, stale-while-revalidate=300`.
+- `curl /api/parcels/map | jq` → `FeatureCollection` with **19 features** (16 active + 2 pending + 1 sold; inactive excluded, 0 invalid coords).
+- **`npm run diagnose:map` (Playwright):** map container resolves to `1440×796`, `.mapboxgl-canvas` renders at the same size, 7 console messages (no errors), 0 page errors, 0 failed requests. Screenshot `tmp-map-diagnostic.png` confirms the map renders with 16 clustered+unclustered markers across the continental US.
+
+**Deviations from plan:**
+1. **API returns all 19 mappable parcels, not 16 active.** Intentional: the client-side filter chips toggle without a round-trip. Inactive still excluded server-side.
+2. **Debugging surfaced two architectural lessons** captured in `tasks/lessons.md`:
+   - Tailwind utility classes must not co-mount on elements decorated by library CSS (`.mapboxgl-map { position: relative }` silently overrode `.absolute` and collapsed height to 0). Fix: wrap library mount targets in a separately-styled div.
+   - When a UI bug is not `curl`-reproducible, reach for Playwright as the first diagnostic, not the last.
+3. **`scripts/diagnose-map.ts` + `npm run diagnose:map`** added as a permanent tool for this project.
+
+**Requires your human eye (cannot be curl'd):**
+- Load [http://localhost:3000/map](http://localhost:3000/map) and confirm:
+  - Map centers on continental US, zoom ~3.4
+  - Clusters are visible at default zoom; zooming in over TX/NM/FL breaks them into pins
+  - Clicking a cluster eases-in to its children
+  - Clicking a pin opens the parcel panel (top-right on desktop, bottom sheet on mobile ≤ 640 px) with price, acreage, location, and a working "View details" link
+  - Filter chip flips: `Available` (16), `Pending` (2), `Sold` (1), `All` (19). Empty overlay shows if a filter yields zero.
+  - Deep-link: [http://localhost:3000/map?focus=108b68d0-ed72-4a71-ba09-0f08dd490a73](http://localhost:3000/map?focus=108b68d0-ed72-4a71-ba09-0f08dd490a73) should fly to Brewster County, TX and open the panel. (This is the Phase-1 first-seed parcel id — your local id may differ; use one from the curl output.)
+  - Dark-mode toggle (system-level) picks the `dark-v11` style on next map load.
+- `/parcels/[slug]` → click **"View on map"** → should route to `/map?focus=<that-parcel-id>`.
+
+### Known follow-ups (intentionally out of Phase 2)
+
+- Runtime style switching when the user flips system dark mode mid-session (currently chosen at mount). Not worth the style-reload complexity until Phase 4 brand pass.
+- Map occupies `calc(100vh - 3.5rem)` (viewport minus header) so the footer scrolls below. Not broken, but Phase 4 polish may want a dedicated `/map` layout that hides the footer.
+- No ISR/CDN testing — `s-maxage=60` will start paying off on Vercel deploy; locally it's just a hint to browsers.
+
+---
+
+## Phase 2 plan (frozen, for provenance)
 
 **Goal:** Let a visitor open `/map`, see every active listing on a clustered U.S. map, click a marker for a mini-card, and jump into the detail page. Mobile gets a bottom sheet; desktop gets a side popup. Status filter chips decide which parcels show.
 

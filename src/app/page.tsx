@@ -50,7 +50,7 @@ export default async function HomePage() {
                 Fresh listings
               </h2>
               <p className="mt-2 text-neutral-600 dark:text-neutral-400">
-                A handful of parcels we're watching this week.
+                A handful of parcels we&apos;re watching this week.
               </p>
             </div>
             <Link
