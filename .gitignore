@@ -42,6 +42,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# exclude all markdown except README.md
+# exclude all markdown except README.md and files under tasks/
 *.md
 !README.md
+!tasks/*.md
+
+# AI tooling directories — never committed
+.claude/
+.cursor/
+.aider*
